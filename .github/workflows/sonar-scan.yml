@@ -1,0 +1,53 @@
+name: Sonar Scan
+
+on:
+    workflow_call:
+        inputs:
+            project_key:
+                required: true
+                type: string
+            scanner_type:
+                required: true
+                type: string
+
+jobs:
+    scan:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+            with:
+                fetch-depth: 0
+
+          - name: Setup .NET
+            if: ${{ inputs.scanner_type == 'dotnet' }}
+            uses: actions/setup-dotnet@v4
+            with:
+                dotnet-version: 10.0.x
+
+          - name: Run Sonar .NET
+            if: ${{ inputs.scanner_type == 'dotnet' }}
+            env:
+                GITHUB_TOKEN: ${{ github.token }}
+                SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+                SONAR_ORG: ${{ secrets.SONAR_ORG }}
+            run: |
+                dotnet tool install --global dotnet-sonarscanner
+                dotnet-sonarscanner begin /k:"${{ inputs.project_key }}" \
+                    /o:"${{ env.SONAR_ORG }}" \
+                    /d:sonar.token="${{ env.SONAR_TOKEN }}" \
+                    /d:sonar.host.url="https://sonarcloud.io"
+                dotnet build --configuration Release
+                dotnet-sonarscanner end /d:sonar.token="${{ env.SONAR_TOKEN }}"
+
+          - name: Run Sonar JS
+            if: ${{ inputs.scanner_type == 'js' }}
+            uses: sonarsource/sonarqube-scan-action@v6
+            env:
+                SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+                SONAR_HOST_URL: "https://sonarcloud.io"
+                SONAR_ORG: ${{ secrets.SONAR_ORG }}
+            with:
+                args: >
+                    -Dsonar.projectKey=${{ inputs.project_key }}
+                    -Dsonar.organization=${{ env.SONAR_ORG }}
