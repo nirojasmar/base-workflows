@@ -1,0 +1,49 @@
+name: "Set up base"
+description: "Composite action that performs basic steps needed for base-workflows"
+
+inputs:
+  gcp_workload_identity_provider:
+    description: "GCP Workload Identity Provider"
+    required: true
+  gcp_service_account:
+    description: "GCP Service Account"
+    required: true
+  registry_host:
+    description: "Docker Registry Host (e.g., us-central1-docker.pkg.dev)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Verify commit is not behind base branch
+      if: github.event_name == 'pull_request'
+      shell: bash
+      run: |
+        BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+        echo "Verifying against base branch: $BASE_BRANCH"
+        git fetch origin $BASE_BRANCH
+        if ! git merge-base --is-ancestor origin/$BASE_BRANCH HEAD; then
+          echo "::error:: 🚩🚩 Current branch is behind $BASE_BRANCH. Please merge or rebase. 🚩🚩"
+          exit 1
+        fi
+        echo "Branch is up to date with $BASE_BRANCH."
+
+    - id: auth
+      name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ inputs.gcp_workload_identity_provider }}
+        service_account: ${{ inputs.gcp_service_account }}
+        token_format: 'access_token'
+
+    - name: Login to GAR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry_host }}
+        username: oauth2accesstoken
+        password: ${{ steps.auth.outputs.access_token }}
