@@ -2,15 +2,18 @@ name: "Set up base"
 description: "Composite action that performs basic steps needed for base-workflows"
 
 inputs:
+  environment:
+    description: "Deployment environment (e.g., dev, prod). If set, determines GCP credentials."
+    required: false
   gcp_workload_identity_provider:
-    description: "GCP Workload Identity Provider"
-    required: true
+    description: "GCP Workload Identity Provider. Required if environment is not set."
+    required: false
   gcp_service_account:
-    description: "GCP Service Account"
-    required: true
+    description: "GCP Service Account. Required if environment is not set."
+    required: false
   registry_host:
-    description: "Docker Registry Host (e.g., us-central1-docker.pkg.dev)"
-    required: true
+    description: "Docker Registry Host (e.g., us-central1-docker.pkg.dev). Required if environment is not set."
+    required: false
 
 runs:
   using: "composite"
@@ -33,17 +36,23 @@ runs:
         fi
         echo "Branch is up to date with $BASE_BRANCH."
 
+    - name: Resolve GCP Credentials
+      id: resolve-creds
+      if: inputs.environment != ''
+      shell: bash
+      run: ${{ github.action_path }}/resolve-creds.sh "${{ inputs.environment }}" "${{ github.action_path }}/account-config.json"
+
     - id: auth
       name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
-        workload_identity_provider: ${{ inputs.gcp_workload_identity_provider }}
-        service_account: ${{ inputs.gcp_service_account }}
+        workload_identity_provider: ${{ steps.resolve-creds.outputs.workload_identity_provider || inputs.gcp_workload_identity_provider }}
+        service_account: ${{ steps.resolve-creds.outputs.service_account || inputs.gcp_service_account }}
         token_format: 'access_token'
 
     - name: Login to GAR
       uses: docker/login-action@v3
       with:
-        registry: ${{ inputs.registry_host }}
+        registry: ${{ steps.resolve-creds.outputs.registry_host || inputs.registry_host }}
         username: oauth2accesstoken
         password: ${{ steps.auth.outputs.access_token }}

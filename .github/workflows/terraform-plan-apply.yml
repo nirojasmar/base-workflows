@@ -8,6 +8,14 @@ on:
         type: string
         default: "."
         description: "Directory containing Terraform configuration"
+      backend_config_bucket:
+        required: false
+        type: string
+        description: "GCS bucket name for Terraform state storage"
+      backend_config_key:
+        required: false
+        type: string
+        description: "GCS key for Terraform state storage"
       tf_version:
         required: false
         type: string
@@ -23,9 +31,9 @@ on:
         description: "Path to .tfvars file"
     secrets:
       GCP_WORKLOAD_IDENTITY_PROVIDER:
-        required: true
+        required: false
       GCP_SERVICE_ACCOUNT:
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -37,14 +45,36 @@ jobs:
     name: Terraform Plan
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Get workflow ref
+        id: workflow_ref
+        uses: actions/github-script@v8
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          script: |
+            const workflowRef = process.env.GITHUB_WORKFLOW_REF;
+            let ref = 'main';
+            if (workflowRef) {
+              const parts = workflowRef.split('@');
+              if (parts.length > 1) {
+                ref = parts[parts.length - 1];
+              }
+            }
+            console.log(`Extracted ref: ${ref}`);
+            core.setOutput('ref', ref);
+
+      - name: Checkout base-workflows
+        uses: actions/checkout@v4
+        with:
+          repository: nirojasmar/base-workflows
+          ref: ${{ steps.workflow_ref.outputs.ref }}
+          path: base-workflows
+          persist-credentials: false
+
+      - name: Set up Base
+        uses: ./base-workflows/actions/setup-base
+        with:
+          environment: ${{ inputs.environment }}
+
+      # TODO: SET BACKEND CONFIG BUCKET
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -89,14 +119,36 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Get workflow ref
+        id: workflow_ref
+        uses: actions/github-script@v8
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          script: |
+            const workflowRef = process.env.GITHUB_WORKFLOW_REF;
+            let ref = 'main';
+            if (workflowRef) {
+              const parts = workflowRef.split('@');
+              if (parts.length > 1) {
+                ref = parts[parts.length - 1];
+              }
+            }
+            console.log(`Extracted ref: ${ref}`);
+            core.setOutput('ref', ref);
+
+      - name: Checkout base-workflows
+        uses: actions/checkout@v4
+        with:
+          repository: nirojasmar/base-workflows
+          ref: ${{ steps.workflow_ref.outputs.ref }}
+          path: base-workflows
+          persist-credentials: false
+
+      - name: Set up Base
+        uses: ./base-workflows/actions/setup-base
+        with:
+          environment: ${{ inputs.environment }}
+
+      # TODO: SET BACKEND BUCKET
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -112,6 +164,12 @@ jobs:
         with:
           name: tfplan
           path: ${{ inputs.working_directory }}
+
+      - name: Untar files
+        id: untar
+        continue-on-error: true
+        run: |
+          tar -xvf ${{ inputs.working_directory }}/tfplan
 
       - name: Terraform Apply
         working-directory: ${{ inputs.working_directory }}
