@@ -1,0 +1,118 @@
+name: Reusable Terraform GCP Workflow
+
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        required: false
+        type: string
+        default: "."
+        description: "Directory containing Terraform configuration"
+      tf_version:
+        required: false
+        type: string
+        default: "latest"
+        description: "Terraform version to use"
+      environment:
+        required: true
+        type: string
+        description: "GitHub Environment to deploy to"
+      tf_vars_file:
+        required: false
+        type: string
+        description: "Path to .tfvars file"
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER:
+        required: true
+      GCP_SERVICE_ACCOUNT:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write # For commenting plan (optional extension)
+
+jobs:
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.tf_version }}
+
+      - name: Terraform Init
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          args=""
+          if [ -n "${{ inputs.tf_vars_file }}" ]; then
+            args="-var-file=${{ inputs.tf_vars_file }}"
+          fi
+          terraform plan -out=tfplan -input=false $args
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ inputs.working_directory }}/tfplan
+          retention-days: 5
+
+  scan:
+    name: Checkov Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: nirojasmar/base-workflows/actions/checkov@main
+        with:
+          directory: ${{ inputs.working_directory }}
+
+  apply:
+    name: Terraform Apply
+    needs: [plan, scan]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.tf_version }}
+
+      - name: Terraform Init
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform init
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ inputs.working_directory }}
+
+      - name: Terraform Apply
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform apply -auto-approve -input=false tfplan
