@@ -21,7 +21,6 @@ runs:
     - name: Checkout repo
       uses: actions/checkout@v4
       with:
-        path: ${{ env.REPO_DIRECTORY }}
         fetch-depth: 0
         clean: false
 

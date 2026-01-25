@@ -140,27 +140,26 @@ jobs:
     timeout-minutes: ${{ inputs.timeout_minutes }}
     environment: ${{ inputs.environment }}
     steps:
-      - name: Get workflow ref
-        id: workflow_ref
+      - name: Get ref
+        id: get-ref
         uses: actions/github-script@v8
         with:
           script: |
-            const workflowRef = process.env.GITHUB_WORKFLOW_REF;
-            let ref = 'main';
-            if (workflowRef) {
-              const parts = workflowRef.split('@');
-              if (parts.length > 1) {
-                ref = parts[parts.length - 1];
-              }
-            }
-            console.log(`Extracted ref: ${ref}`);
+            const idToken = await core.getIDToken()
+            const payloadBase64 = idToken.split('.')[1];
+            const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+            const payload = JSON.parse(payloadJson);
+            const workflowRef = payload.job_workflow_ref;
+            console.log(`Full workflow ref from token: ${workflowRef}`);
+            const ref = workflowRef.split('@')[1].replace('refs/heads/', '');
+            console.log(`Resolved library ref: ${ref}`);
             core.setOutput('ref', ref);
 
       - name: Checkout base-workflows
         uses: actions/checkout@v4
         with:
           repository: nirojasmar/base-workflows
-          ref: ${{ steps.workflow_ref.outputs.ref }}
+          ref: ${{ steps.get-ref.outputs.ref }}
           path: base-workflows
           persist-credentials: false
 
