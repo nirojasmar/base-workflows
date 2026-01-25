@@ -53,19 +53,9 @@ jobs:
     steps:
       - name: Get workflow ref
         id: workflow_ref
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const workflowRef = process.env.GITHUB_WORKFLOW_REF;
-            let ref = 'main';
-            if (workflowRef) {
-              const parts = workflowRef.split('@');
-              if (parts.length > 1) {
-                ref = parts[parts.length - 1];
-              }
-            }
-            console.log(`Extracted ref: ${ref}`);
-            core.setOutput('ref', ref);
+        run: |
+          REF=$(echo "${{ github.workflow_ref }}" | awk -F'@' '{print $2}')
+          echo "ref=$REF" >> $GITHUB_OUTPUT
 
       - name: Checkout base-workflows
         uses: actions/checkout@v4
