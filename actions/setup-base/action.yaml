@@ -43,9 +43,15 @@ runs:
       id: resolve-creds
       if: inputs.environment != ''
       shell: bash
-      run: bash "${{ github.action_path }}/resolve-creds.sh" \
-          "${{ inputs.environment }}" \
-          "${{ github.action_path }}/account-config.json"
+      run: |
+        # 1. Sanitize line endings in the script itself just in case
+        sed -i 's/\r$//' "${{ github.action_path }}/resolve-creds.sh"
+        
+        # 2. Run with cleaned paths (removing the extra /)
+        SCRIPT_PATH="${{ github.action_path }}/resolve-creds.sh"
+        CONFIG_PATH="${{ github.action_path }}/account-config.json"
+        
+        bash "$SCRIPT_PATH" "${{ inputs.environment }}" "$CONFIG_PATH"
 
     - id: auth
       name: Authenticate to Google Cloud
