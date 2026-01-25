@@ -42,7 +42,15 @@ jobs:
       - name: Generate Matrix
         id: set-matrix
         run: |
-          echo "environments=$(echo '${{ inputs.environment }}' | jq -c 'split(",")')" >> $GITHUB_OUTPUT
+          ALLOWED_ENVS='["dev", "qa", "prod"]'
+          INPUT_JSON=$(echo "${{ inputs.environment }}" | jq -R -s -c 'split(",") | map(gsub("\\s+|\\n"; ""))')
+          INVALID_ENVS=$(echo $INPUT_JSON | jq -c --argjson allowed "$ALLOWED_ENVS" 'map(select(. as $i | $allowed | contains([$i]) | not))')
+          if [ "$INVALID_ENVS" != "[]" ]; then
+            echo "::error title=Invalid Environment::The following environments are not allowed: $INVALID_ENVS. Please use only: $ALLOWED_ENVS"
+            exit 1
+          fi
+
+          echo "environments=$INPUT_JSON" >> $GITHUB_OUTPUT
 
   deploy:
     name: Deploy to ${{ matrix.environment }}
