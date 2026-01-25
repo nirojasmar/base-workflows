@@ -25,6 +25,11 @@ on:
         required: true
         type: string
         description: "GitHub Environment to deploy to"
+      timeout_minutes:
+        required: false
+        type: number
+        default: 60
+        description: "Timeout for the workflow"
       tf_vars_file:
         required: false
         type: string
@@ -44,6 +49,7 @@ jobs:
   plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
     steps:
       - name: Get workflow ref
         id: workflow_ref
@@ -126,6 +132,7 @@ jobs:
     name: Terraform Apply
     needs: [plan]
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
     environment: ${{ inputs.environment }}
     steps:
       - name: Get workflow ref
