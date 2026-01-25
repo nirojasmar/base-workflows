@@ -44,7 +44,7 @@ runs:
         echo "Action path is: ${{ github.action_path }}"
         echo "Current directory is: $(pwd)"
         echo "Listing files in action path:"
-        ls -R ${{ github.action_path }}
+        ls -R
 
     - name: Resolve GCP Credentials
       id: resolve-creds
