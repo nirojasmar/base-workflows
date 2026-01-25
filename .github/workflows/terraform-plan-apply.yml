@@ -25,10 +25,6 @@ on:
         required: true
         type: string
         description: "GitHub Environment to deploy to"
-      ref:
-        required: true
-        type: string
-        description: "Workflow ref"
       timeout_minutes:
         required: false
         type: number
@@ -55,11 +51,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     steps:
+      - name: Get ref
+        id: get-ref
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const idToken = await core.getIDToken()
+            const payloadBase64 = idToken.split('.')[1];
+            const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+            const payload = JSON.parse(payloadJson);
+            const workflowRef = payload.job_workflow_ref;
+            console.log(`Full workflow ref from token: ${workflowRef}`);
+            const ref = workflowRef.split('@')[1].replace('refs/heads/', '');
+            console.log(`Resolved library ref: ${ref}`);
+            core.setOutput('ref', ref);
+
       - name: Checkout base-workflows
         uses: actions/checkout@v4
         with:
           repository: nirojasmar/base-workflows
-          ref: ${{ inputs.ref }}
+          ref: ${{ steps.get-ref.outputs.ref }}
           path: base-workflows
           persist-credentials: false
 

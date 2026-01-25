@@ -38,16 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environments: ${{ steps.set-matrix.outputs.environments }}
-      ref: ${{ steps.get-ref.outputs.ref }}
     steps:
-      - name: Get current ref
-        id: get-ref
-        shell: bash
-        run: |
-          # Extract the ref from the current workflow call
-          REF=$(echo "${{ github.workflow_ref }}" | awk -F'@' '{print $2}')
-          echo "ref=$REF" >> $GITHUB_OUTPUT
-
       - name: Generate Matrix
         id: set-matrix
         run: |
@@ -74,7 +65,6 @@ jobs:
     with:
       environment: ${{ matrix.environment }}
       backend_config_bucket: ${{ fromJson(inputs.backend_config_bucket)[matrix.environment] }}
-      ref: ${{ needs.setup.outputs.ref }}
       working_directory: ${{ inputs.working_directory }}
       tf_version: ${{ inputs.tf_version }}
       timeout_minutes: ${{ inputs.timeout_minutes }}
