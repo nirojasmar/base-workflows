@@ -21,7 +21,9 @@ runs:
     - name: Checkout repo
       uses: actions/checkout@v4
       with:
+        path: ${{ env.REPO_DIRECTORY }}
         fetch-depth: 0
+        clean: false
 
     - name: Verify commit is not behind base branch
       if: github.event_name == 'pull_request'
