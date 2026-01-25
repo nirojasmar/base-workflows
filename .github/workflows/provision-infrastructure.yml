@@ -28,6 +28,11 @@ on:
         default: 60
         description: "Timeout for the workflow"
 
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
 jobs:
   setup:
     runs-on: ubuntu-latest
