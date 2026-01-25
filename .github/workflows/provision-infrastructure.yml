@@ -1,7 +1,7 @@
 name: Provision Infrastructure
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       backend_config_bucket:
         description: 'JSON map of env to bucket (e.g. {"dev": "bucket-dev", "prod": "bucket-prod"})'
