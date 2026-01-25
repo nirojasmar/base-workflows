@@ -8,6 +8,10 @@ on:
         required: true
         type: string
         default: '{"dev": "hobio-nonprod-tfstates-ue1", "qa": "hobio-nonprod-tfstates-ue1", "prod": "hobio-prod-tfstates-ue1"}'
+      environment:
+        required: true
+        type: string
+        description: "List of environments to deploy to (dev,qa,prod)"
       working_directory:
         required: false
         type: string
@@ -33,9 +37,10 @@ jobs:
       - name: Generate Matrix
         id: set-matrix
         run: |
-          echo "environments=$(echo '${{ inputs.backend_config_bucket }}' | jq -c 'keys')" >> $GITHUB_OUTPUT
+          echo "environments=$(echo '${{ inputs.environment }}' | jq -c 'split(",")')" >> $GITHUB_OUTPUT
 
   deploy:
+    name: Deploy to ${{ matrix.environment }}
     needs: setup
     strategy:
       matrix:
