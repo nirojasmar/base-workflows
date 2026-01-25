@@ -124,7 +124,7 @@ jobs:
           retention-days: 5
 
       - name: Checkov Scan
-        uses: nirojasmar/base-workflows/actions/checkov@main
+        uses: ./base-workflows/actions/checkov
         with:
           directory: ${{ inputs.working_directory }}
 
