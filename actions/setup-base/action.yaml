@@ -50,7 +50,9 @@ runs:
       id: resolve-creds
       if: inputs.environment != ''
       shell: bash
-      run: ${{ github.action_path }}/resolve-creds.sh "${{ inputs.environment }}" "${{ github.action_path }}/account-config.json"
+      run: bash "${{ github.action_path }}/resolve-creds.sh" \
+          "${{ inputs.environment }}" \
+          "${{ github.action_path }}/account-config.json"
 
     - id: auth
       name: Authenticate to Google Cloud

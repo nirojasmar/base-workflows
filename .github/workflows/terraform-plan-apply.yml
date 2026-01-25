@@ -71,7 +71,7 @@ jobs:
         with:
           repository: nirojasmar/base-workflows
           ref: ${{ steps.get-ref.outputs.ref }}
-          path: base-workflows
+          path: .base-workflows
           persist-credentials: false
 
       - name: Set up Base
