@@ -71,11 +71,17 @@ jobs:
         with:
           repository: nirojasmar/base-workflows
           ref: ${{ steps.get-ref.outputs.ref }}
-          path: .base-workflows
+          path: base-workflows
           persist-credentials: false
 
+      - name: Debug Pathing
+        shell: bash
+        run: |
+          echo "Listing files in base-workflows directory:"
+          ls -R base-workflows
+
       - name: Set up Base
-        uses: ./base-workflows/actions/setup-base
+        uses: ./base-workflows/actions/setup-base/
         with:
           environment: ${{ inputs.environment }}
 
