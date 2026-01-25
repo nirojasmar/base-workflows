@@ -25,6 +25,10 @@ on:
         required: true
         type: string
         description: "GitHub Environment to deploy to"
+      ref:
+        required: true
+        type: string
+        description: "Workflow ref"
       timeout_minutes:
         required: false
         type: number
@@ -51,17 +55,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     steps:
-      - name: Get workflow ref
-        id: workflow_ref
-        run: |
-          REF=$(echo "${{ github.workflow_ref }}" | awk -F'@' '{print $2}')
-          echo "ref=$REF" >> $GITHUB_OUTPUT
-
       - name: Checkout base-workflows
         uses: actions/checkout@v4
         with:
           repository: nirojasmar/base-workflows
-          ref: ${{ steps.workflow_ref.outputs.ref }}
+          ref: ${{ inputs.ref }}
           path: base-workflows
           persist-credentials: false
 
