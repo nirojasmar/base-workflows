@@ -11,7 +11,7 @@ on:
       backend_config_bucket:
         required: false
         type: string
-        description: "GCS bucket name for Terraform state storage"
+        description: "GCS bucket for Terraform state storage"
       backend_config_key:
         required: false
         type: string
@@ -38,7 +38,7 @@ on:
 permissions:
   contents: read
   id-token: write
-  pull-requests: write # For commenting plan (optional extension)
+  pull-requests: write
 
 jobs:
   plan:
@@ -74,8 +74,6 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
 
-      # TODO: SET BACKEND CONFIG BUCKET
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -83,9 +81,15 @@ jobs:
 
       - name: Terraform Init
         working-directory: ${{ inputs.working_directory }}
-        run: terraform init
+        run: |
+          args=""
+          if [ -n "${{ inputs.backend_config_bucket }}" ]; then
+            args="-backend-config=\"bucket=${{ inputs.backend_config_bucket }}\""
+          fi
+          terraform init $args
 
       - name: Terraform Plan
+        id: tf-plan
         working-directory: ${{ inputs.working_directory }}
         run: |
           args=""
@@ -94,6 +98,18 @@ jobs:
           fi
           terraform plan -out=tfplan -input=false $args
 
+      - name: Post Plan to Summary
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          echo "### Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "$(terraform show -no-color tfplan | grep -E '^Plan:|^No changes.')" >> $GITHUB_STEP_SUMMARY
+          echo "<details><summary>Show Plan Output</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```terraform' >> $GITHUB_STEP_SUMMARY
+          terraform show -no-color tfplan >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -101,21 +117,14 @@ jobs:
           path: ${{ inputs.working_directory }}/tfplan
           retention-days: 5
 
-  scan:
-    name: Checkov Scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Run Checkov
+      - name: Checkov Scan
         uses: nirojasmar/base-workflows/actions/checkov@main
         with:
           directory: ${{ inputs.working_directory }}
 
   apply:
     name: Terraform Apply
-    needs: [plan, scan]
+    needs: [plan]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
@@ -148,8 +157,6 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
 
-      # TODO: SET BACKEND BUCKET
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -157,7 +164,12 @@ jobs:
 
       - name: Terraform Init
         working-directory: ${{ inputs.working_directory }}
-        run: terraform init
+        run: |
+          args=""
+          if [ -n "${{ inputs.backend_config_bucket }}" ]; then
+            args="-backend-config=\"bucket=${{ inputs.backend_config_bucket }}\""
+          fi
+          terraform init $args
 
       - name: Download Plan Artifact
         uses: actions/download-artifact@v4

@@ -1,0 +1,45 @@
+name: Provision Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_config_bucket:
+        description: 'JSON map of env to bucket (e.g. {"dev": "bucket-dev", "prod": "bucket-prod"})'
+        required: true
+        type: string
+        default: '{"dev": "hobio-nonprod-tfstates-ue1", "qa": "hobio-nonprod-tfstates-ue1", "prod": "hobio-prod-tfstates-ue1"}'
+      working_directory:
+        required: false
+        type: string
+        default: "."
+        description: "Directory containing Terraform configuration"
+      tf_version:
+        required: false
+        type: string
+        default: "latest"
+        description: "Terraform version to use"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      environments: ${{ steps.set-matrix.outputs.environments }}
+    steps:
+      - name: Generate Matrix
+        id: set-matrix
+        run: |
+          echo "environments=$(echo '${{ inputs.backend_config_bucket }}' | jq -c 'keys')" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: setup
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.setup.outputs.environments) }}
+      fail-fast: false
+    uses: ./.github/workflows/terraform-plan-apply.yml
+    with:
+      environment: ${{ matrix.environment }}
+      backend_config_bucket: ${{ fromJson(inputs.backend_config_bucket)[matrix.environment] }}
+      working_directory: ${{ inputs.working_directory }}
+      tf_version: ${{ inputs.tf_version }}
+    secrets: inherit
