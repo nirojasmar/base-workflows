@@ -126,12 +126,19 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload Plan Artifact
+      - name: Bundle Terraform Files
+        working-directory: ${{ inputs.working_directory }}
+        shell: bash
+        run: |
+          # Create a tarball containing the plan, the lock file, and the providers
+          tar -cvf tf-bundle.tar tfplan .terraform.lock.hcl .terraform/
+
+      - name: Upload Plan Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan
-          path: ${{ inputs.working_directory }}/tfplan
-          retention-days: 5
+          name: terraform-bundle
+          path: ${{ inputs.working_directory }}/tf-bundle.tar
+          retention-days: 1
 
       - name: Checkov Scan
         uses: ./base-workflows/actions/checkov
@@ -183,21 +190,19 @@ jobs:
         run: |
           args=""
           if [ -n "${{ inputs.backend_config_bucket }}" ]; then
-            args="-backend-config=\"bucket=${{ inputs.backend_config_bucket }}\""
+            args="-backend-config=bucket=${{ inputs.backend_config_bucket }}"
           fi
           terraform init $args
 
-      - name: Download Plan Artifact
+      - name: Download Plan Bundle
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
+          name: terraform-bundle
           path: ${{ inputs.working_directory }}
 
-      - name: Untar files
-        id: untar
-        continue-on-error: true
-        run: |
-          tar -xvf ${{ inputs.working_directory }}/tfplan
+      - name: Extract Bundle
+        working-directory: ${{ inputs.working_directory }}
+        run: tar -xvf tf-bundle.tar
 
       - name: Terraform Apply
         working-directory: ${{ inputs.working_directory }}
