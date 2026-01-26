@@ -1,0 +1,71 @@
+name: Provision Infrastructure
+
+on:
+  workflow_call:
+    inputs:
+      backend_config_bucket:
+        description: 'JSON map of env to bucket (e.g. {"dev": "bucket-dev", "prod": "bucket-prod"})'
+        required: true
+        type: string
+        default: '{"dev": "hobio-nonprod-tfstates-ue1", "qa": "hobio-nonprod-tfstates-ue1", "prod": "hobio-prod-tfstates-ue1"}'
+      environment:
+        required: true
+        type: string
+        description: "List of environments to deploy to (dev,qa,prod)"
+      working_directory:
+        required: false
+        type: string
+        default: "."
+        description: "Directory containing Terraform configuration"
+      tf_version:
+        required: false
+        type: string
+        default: "latest"
+        description: "Terraform version to use"
+      timeout_minutes:
+        required: false
+        type: number
+        default: 60
+        description: "Timeout for the workflow"
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      environments: ${{ steps.set-matrix.outputs.environments }}
+    steps:
+      - name: Generate Matrix
+        id: set-matrix
+        run: |
+          ALLOWED_ENVS='["dev", "qa", "prod"]'
+          INPUT_JSON=$(echo "${{ inputs.environment }}" | jq -R -s -c 'split(",") | map(gsub("\\s+|\\n"; ""))')
+          INVALID_ENVS=$(echo $INPUT_JSON | jq -c --argjson allowed "$ALLOWED_ENVS" 'map(select(. as $i | $allowed | contains([$i]) | not))')
+          if [ "$INVALID_ENVS" != "[]" ]; then
+            echo "::error title=Invalid Environment::The following environments are not allowed: $INVALID_ENVS. Please use only: $ALLOWED_ENVS"
+            exit 1
+          fi
+
+          echo "environments=$INPUT_JSON" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy to ${{ matrix.environment }}
+    needs: setup
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.setup.outputs.environments) }}
+      fail-fast: true
+      max-parallel: 1
+    uses: ./.github/workflows/terraform-plan-apply.yml
+    secrets: inherit
+    with:
+      environment: ${{ matrix.environment }}
+      backend_config_bucket: ${{ fromJson(inputs.backend_config_bucket)[matrix.environment] }}
+      working_directory: ${{ inputs.working_directory }}
+      tf_version: ${{ inputs.tf_version }}
+      timeout_minutes: ${{ inputs.timeout_minutes }}
+    

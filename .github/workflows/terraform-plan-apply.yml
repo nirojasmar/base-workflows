@@ -1,0 +1,209 @@
+name: Reusable Terraform GCP Workflow
+
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        required: false
+        type: string
+        default: "."
+        description: "Directory containing Terraform configuration"
+      backend_config_bucket:
+        required: false
+        type: string
+        description: "GCS bucket for Terraform state storage"
+      backend_config_key:
+        required: false
+        type: string
+        description: "GCS key for Terraform state storage"
+      tf_version:
+        required: false
+        type: string
+        default: "latest"
+        description: "Terraform version to use"
+      environment:
+        required: true
+        type: string
+        description: "GitHub Environment to deploy to"
+      timeout_minutes:
+        required: false
+        type: number
+        default: 60
+        description: "Timeout for the workflow"
+      tf_vars_file:
+        required: false
+        type: string
+        description: "Path to .tfvars file"
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER:
+        required: false
+      GCP_SERVICE_ACCOUNT:
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  plan:
+    name: Terraform Plan - ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get ref
+        id: get-ref
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const idToken = await core.getIDToken()
+            const payloadBase64 = idToken.split('.')[1];
+            const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+            const payload = JSON.parse(payloadJson);
+            const workflowRef = payload.job_workflow_ref;
+            console.log(`Full workflow ref from token: ${workflowRef}`);
+            const ref = workflowRef.split('@')[1].replace('refs/heads/', '');
+            console.log(`Resolved library ref: ${ref}`);
+            core.setOutput('ref', ref);
+
+      - name: Checkout base-workflows
+        uses: actions/checkout@v4
+        with:
+          repository: nirojasmar/base-workflows
+          ref: ${{ steps.get-ref.outputs.ref }}
+          path: base-workflows
+          persist-credentials: false
+
+      - name: Debug Pathing
+        shell: bash
+        run: |
+          echo "Listing files in base-workflows directory:"
+          ls -R base-workflows
+
+      - name: Set up Base
+        uses: ./base-workflows/actions/setup-base/
+        with:
+          environment: ${{ inputs.environment }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.tf_version }}
+
+      - name: Terraform Init
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          args=""
+          if [ -n "${{ inputs.backend_config_bucket }}" ]; then
+            args="-backend-config=bucket=${{ inputs.backend_config_bucket }}"
+          fi
+          terraform init $args
+
+      - name: Terraform Plan
+        id: tf-plan
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          args=""
+          if [ -n "${{ inputs.tf_vars_file }}" ]; then
+            args="-var-file=${{ inputs.tf_vars_file }}"
+          fi
+          terraform plan -out=tfplan -input=false $args
+
+      - name: Post Plan to Summary
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          echo "### Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "$(terraform show -no-color tfplan | grep -E '^Plan:|^No changes.')" >> $GITHUB_STEP_SUMMARY
+          echo "<details><summary>Show Plan Output</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```terraform' >> $GITHUB_STEP_SUMMARY
+          terraform show -no-color tfplan >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+
+      - name: Bundle Terraform Files
+        working-directory: ${{ inputs.working_directory }}
+        shell: bash
+        run: |
+          # Create a tarball containing the plan, the lock file, and the providers
+          tar -cvf tf-bundle.tar tfplan .terraform.lock.hcl .terraform/
+
+      - name: Upload Plan Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-bundle
+          path: ${{ inputs.working_directory }}/tf-bundle.tar
+          retention-days: 1
+
+      - name: Checkov Scan
+        uses: ./base-workflows/actions/checkov
+        with:
+          directory: ${{ inputs.working_directory }}
+
+  apply:
+    name: Terraform Apply - ${{ inputs.environment }}
+    needs: [plan]
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Get ref
+        id: get-ref
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const idToken = await core.getIDToken()
+            const payloadBase64 = idToken.split('.')[1];
+            const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+            const payload = JSON.parse(payloadJson);
+            const workflowRef = payload.job_workflow_ref;
+            console.log(`Full workflow ref from token: ${workflowRef}`);
+            const ref = workflowRef.split('@')[1].replace('refs/heads/', '');
+            console.log(`Resolved library ref: ${ref}`);
+            core.setOutput('ref', ref);
+
+      - name: Checkout base-workflows
+        uses: actions/checkout@v4
+        with:
+          repository: nirojasmar/base-workflows
+          ref: ${{ steps.get-ref.outputs.ref }}
+          path: base-workflows
+          persist-credentials: false
+
+      - name: Set up Base
+        uses: ./base-workflows/actions/setup-base
+        with:
+          environment: ${{ inputs.environment }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.tf_version }}
+
+      - name: Terraform Init
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          args=""
+          if [ -n "${{ inputs.backend_config_bucket }}" ]; then
+            args="-backend-config=bucket=${{ inputs.backend_config_bucket }}"
+          fi
+          terraform init $args
+
+      - name: Download Plan Bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-bundle
+          path: ${{ inputs.working_directory }}
+
+      - name: Extract Bundle
+        working-directory: ${{ inputs.working_directory }}
+        run: tar -xvf tf-bundle.tar
+
+      - name: Terraform Apply
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform apply -auto-approve -input=false tfplan

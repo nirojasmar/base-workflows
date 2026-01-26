@@ -1,0 +1,69 @@
+name: "Set up base"
+description: "Composite action that performs basic steps needed for base-workflows"
+
+inputs:
+  environment:
+    description: "Deployment environment (e.g., dev, prod). If set, determines GCP credentials."
+    required: false
+  gcp_workload_identity_provider:
+    description: "GCP Workload Identity Provider. Required if environment is not set."
+    required: false
+  gcp_service_account:
+    description: "GCP Service Account. Required if environment is not set."
+    required: false
+  registry_host:
+    description: "Docker Registry Host (e.g., us-central1-docker.pkg.dev). Required if environment is not set."
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Verify commit is not behind base branch
+      if: github.event_name == 'pull_request'
+      shell: bash
+      run: |
+        BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+        echo "Verifying against base branch: $BASE_BRANCH"
+        git fetch origin $BASE_BRANCH
+        if ! git merge-base --is-ancestor origin/$BASE_BRANCH HEAD; then
+          echo "::error:: 🚩🚩 Current branch is behind $BASE_BRANCH. Please merge or rebase. 🚩🚩"
+          exit 1
+        fi
+        echo "Branch is up to date with $BASE_BRANCH."
+
+    - name: Debug Pathing
+      shell: bash
+      run: |
+        echo "Action path is: ${{ github.action_path }}"
+        echo "Current directory is: $(pwd)"
+        echo "Listing files in action path:"
+        ls -R
+
+    - name: Resolve GCP Credentials
+      id: resolve-creds
+      if: inputs.environment != ''
+      shell: bash
+      run: |
+        # 1. Sanitize line endings in the script itself just in case
+        sed -i 's/\r$//' "${{ github.action_path }}/resolve-creds.sh"
+        
+        # 2. Run with cleaned paths (removing the extra /)
+        SCRIPT_PATH="${{ github.action_path }}/resolve-creds.sh"
+        CONFIG_PATH="${{ github.action_path }}/account-config.json"
+        
+        bash "$SCRIPT_PATH" "${{ inputs.environment }}" "$CONFIG_PATH"
+
+    - id: auth
+      name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ steps.resolve-creds.outputs.workload_identity_provider || inputs.gcp_workload_identity_provider }}
+        service_account: ${{ steps.resolve-creds.outputs.service_account || inputs.gcp_service_account }}
+        token_format: 'access_token'
+
+    - name: Login to GAR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ steps.resolve-creds.outputs.registry_host || inputs.registry_host }}
+        username: oauth2accesstoken
+        password: ${{ steps.auth.outputs.access_token }}

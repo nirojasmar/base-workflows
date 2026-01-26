@@ -1,0 +1,90 @@
+name: Reusable Docker Image Test and Build Workflow
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        type: string
+        description: "The name of the image to build (e.g. project/repo/image)"
+      dockerfile_path:
+        required: false
+        type: string
+        default: "./Dockerfile"
+        description: "Path to Dockerfile"
+      build_context:
+        required: false
+        type: string
+        default: "."
+        description: "Build context"
+      registry_host:
+        required: true
+        type: string
+        description: "GAR Registry Host (e.g. us-central1-docker.pkg.dev)"
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER:
+        required: true
+      GCP_SERVICE_ACCOUNT:
+        required: true
+
+jobs:
+  build:
+    name: Build, Test and Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+
+    steps:
+      - name: Setup Base (Checkout, Auth, Login)
+        id: setup
+        uses: nirojasmar/base-workflows/actions/setup-base@main
+        with:
+          gcp_workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          gcp_service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          registry_host: ${{ inputs.registry_host }}
+
+      - name: Calculate Version
+        id: version
+        uses: nirojasmar/base-workflows/actions/version@main
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Export for Scan
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.build_context }}
+          file: ${{ inputs.dockerfile_path }}
+          load: true
+          tags: ${{ inputs.registry_host }}/${{ inputs.image_name }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ inputs.registry_host }}/${{ inputs.image_name }}:test
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.build_context }}
+          file: ${{ inputs.dockerfile_path }}
+          push: true
+          tags: |
+            ${{ inputs.registry_host }}/${{ inputs.image_name }}:${{ steps.version.outputs.version }}
+            ${{ inputs.registry_host }}/${{ inputs.image_name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
