@@ -100,7 +100,7 @@ jobs:
         run: |
           args=""
           if [ -n "${{ inputs.backend_config_bucket }}" ]; then
-            args="-backend-config=\"bucket=${{ inputs.backend_config_bucket }}\""
+            args="-backend-config=bucket=${{ inputs.backend_config_bucket }}"
           fi
           terraform init $args
 
