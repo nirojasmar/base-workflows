@@ -26,6 +26,10 @@ on:
         required: true
         type: string
         description: "GAR Registry Host (e.g. us-central1-docker.pkg.dev)"
+      environment:
+        required: true
+        type: string
+        description: "Environment (e.g. dev, qa, prod)"
     secrets:
       GCP_WORKLOAD_IDENTITY_PROVIDER:
         required: true
