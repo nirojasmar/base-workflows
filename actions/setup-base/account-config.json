@@ -2,7 +2,7 @@
     "gcp_account_config": {
         "prod": {
             "service_account_to_assume": "hobio-cd@hobio-prod.iam.gserviceaccount.com",
-            "workload_identity_provider": "",
+            "workload_identity_provider": "projects/184799108707/locations/global/workloadIdentityPools/github-pool/providers/github-provider",
             "registry_host": ""
         },
         "dev": {
