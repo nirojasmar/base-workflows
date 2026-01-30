@@ -18,6 +18,14 @@ inputs:
     description: "Skip verification of the base branch. Required if environment is not set."
     required: false
 
+outputs:
+  gcp_service_account:
+    description: "GCP Service Account"
+    value: ${{ steps.resolve-creds.outputs.service_account || inputs.gcp_service_account }}
+  registry_host:
+    description: "Docker Registry Host"
+    value: ${{ steps.resolve-creds.outputs.registry_host || inputs.registry_host }}
+
 runs:
   using: "composite"
   steps:
