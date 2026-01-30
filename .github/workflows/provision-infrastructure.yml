@@ -8,6 +8,11 @@ on:
         required: true
         type: string
         default: '{"dev": "hobio-nonprod-tfstates-ue1", "qa": "hobio-nonprod-tfstates-ue1", "prod": "hobio-prod-tfstates-ue1"}'
+      backend_config_prefix:
+        description: 'Prefix for the backend config in the bucket'
+        required: false
+        type: string
+        default: 'terraform/state'
       environment:
         required: true
         type: string
@@ -65,6 +70,7 @@ jobs:
     with:
       environment: ${{ matrix.environment }}
       backend_config_bucket: ${{ fromJson(inputs.backend_config_bucket)[matrix.environment] }}
+      backend_config_prefix: ${{ inputs.backend_config_prefix }}
       working_directory: ${{ inputs.working_directory }}
       tf_version: ${{ inputs.tf_version }}
       timeout_minutes: ${{ inputs.timeout_minutes }}

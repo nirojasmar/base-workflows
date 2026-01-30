@@ -12,6 +12,10 @@ on:
         required: false
         type: string
         description: "GCS bucket for Terraform state storage"
+      backend_config_prefix:
+        required: false
+        type: string
+        description: "GCS prefix for Terraform state storage"
       backend_config_key:
         required: false
         type: string
@@ -102,6 +106,9 @@ jobs:
           if [ -n "${{ inputs.backend_config_bucket }}" ]; then
             args="-backend-config=bucket=${{ inputs.backend_config_bucket }}"
           fi
+          if [ -n "${{ inputs.backend_config_prefix }}" ]; then
+            args="$args -backend-config=prefix=${{ inputs.backend_config_prefix }}"
+          fi
           terraform init $args
 
       - name: Terraform Plan
@@ -191,6 +198,9 @@ jobs:
           args=""
           if [ -n "${{ inputs.backend_config_bucket }}" ]; then
             args="-backend-config=bucket=${{ inputs.backend_config_bucket }}"
+          fi
+          if [ -n "${{ inputs.backend_config_prefix }}" ]; then
+            args="$args -backend-config=prefix=${{ inputs.backend_config_prefix }}"
           fi
           terraform init $args
 
