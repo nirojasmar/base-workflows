@@ -117,7 +117,7 @@ jobs:
         working-directory: ${{ inputs.working_directory }}
         run: |
           args=""
-          if [ -n "${{ inputs.tf_vars_file }}" ]; then
+          if [ -f "${{ inputs.tf_vars_file }}" ]; then
             args="-var-file=${{ inputs.tf_vars_file }}"
           fi
           terraform plan -out=tfplan -input=false $args
