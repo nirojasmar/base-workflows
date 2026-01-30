@@ -120,10 +120,6 @@ jobs:
           if [ -n "${{ inputs.tf_vars_file }}" ]; then
             args="-var-file=${{ inputs.tf_vars_file }}"
           fi
-          if [ -f "vars/${{ inputs.environment }}.tfvars" ]; then
-             echo "Using var file: vars/${{ inputs.environment }}.tfvars"
-             args="$args -var-file=vars/${{ inputs.environment }}.tfvars"
-          fi
           terraform plan -out=tfplan -input=false $args
 
       - name: Post Plan to Summary
