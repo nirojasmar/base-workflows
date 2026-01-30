@@ -32,6 +32,11 @@ on:
         type: number
         default: 60
         description: "Timeout for the workflow"
+      tf_vars_file:
+        required: false
+        type: string
+        description: "Path to .tfvars file"
+        default: '{"dev": "vars/dev.tfvars", "qa": "vars/qa.tfvars", "prod": "vars/prod.tfvars"}'
 
 permissions:
   contents: read
@@ -71,6 +76,7 @@ jobs:
       environment: ${{ matrix.environment }}
       backend_config_bucket: ${{ fromJson(inputs.backend_config_bucket)[matrix.environment] }}
       backend_config_prefix: ${{ fromJson(inputs.backend_config_prefix)[matrix.environment] }}
+      tf_vars_file: ${{ fromJson(inputs.tf_vars_file)[matrix.environment] }}
       working_directory: ${{ inputs.working_directory }}
       tf_version: ${{ inputs.tf_version }}
       timeout_minutes: ${{ inputs.timeout_minutes }}

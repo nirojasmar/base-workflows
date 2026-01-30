@@ -38,7 +38,6 @@ on:
         required: false
         type: string
         description: "Path to .tfvars file"
-        default: "vars/${{ inputs.environment }}.tfvars"
     secrets:
       GCP_WORKLOAD_IDENTITY_PROVIDER:
         required: false
