@@ -186,6 +186,7 @@ jobs:
         uses: ./base-workflows/actions/setup-base
         with:
           environment: ${{ inputs.environment }}
+          skip_verify: true
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
