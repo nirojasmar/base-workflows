@@ -38,6 +38,11 @@ on:
         required: false
         type: string
         description: "Path to .tfvars file"
+      sandbox_environments:
+        required: false
+        type: string
+        default: ""
+        description: "List of sandbox environments (dev, qa)"
     secrets:
       GCP_WORKLOAD_IDENTITY_PROVIDER:
         required: false
@@ -155,6 +160,7 @@ jobs:
   apply:
     name: Terraform Apply - ${{ inputs.environment }}
     needs: [plan]
+    if: github.event_name != 'pull_request' || contains(fromJson(inputs.sandbox_environments), inputs.environment)
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     environment: ${{ inputs.environment }}

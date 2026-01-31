@@ -37,6 +37,11 @@ on:
         type: string
         description: "Path to .tfvars file"
         default: '{"dev": "vars/dev.tfvars", "qa": "vars/qa.tfvars", "prod": "vars/prod.tfvars"}'
+      sandbox_environments:
+        required: false
+        type: string
+        default: ""
+        description: "List of sandbox environments"
 
 permissions:
   contents: read
@@ -80,4 +85,5 @@ jobs:
       working_directory: ${{ inputs.working_directory }}
       tf_version: ${{ inputs.tf_version }}
       timeout_minutes: ${{ inputs.timeout_minutes }}
+      sandbox_environments: ${{ inputs.sandbox_environments }}
     
