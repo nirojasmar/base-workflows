@@ -30,11 +30,6 @@ on:
         required: true
         type: string
         description: "Environment (e.g. dev, qa, prod)"
-    secrets:
-      GCP_WORKLOAD_IDENTITY_PROVIDER:
-        required: true
-      GCP_SERVICE_ACCOUNT:
-        required: true
 
 jobs:
   build:
