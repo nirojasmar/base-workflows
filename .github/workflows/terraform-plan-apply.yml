@@ -214,7 +214,7 @@ jobs:
       - name: Download Plan Bundle
         uses: actions/download-artifact@v4
         with:
-          name: terraform-bundle
+          name: terraform-bundle-${{ inputs.environment }}
           path: ${{ inputs.working_directory }}
 
       - name: Extract Bundle
