@@ -160,7 +160,7 @@ jobs:
   apply:
     name: Terraform Apply - ${{ inputs.environment }}
     needs: [plan]
-    if: github.event_name != 'pull_request' || contains(fromJson(inputs.sandbox_environments), inputs.environment)
+    if: (github.event_name != 'pull_request') || (contains(fromJson(inputs.sandbox_environments), inputs.environment))
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     environment: ${{ inputs.environment }}

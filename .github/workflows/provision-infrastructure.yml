@@ -12,7 +12,7 @@ on:
         description: 'Prefix for the backend config in the bucket'
         required: false
         type: string
-        default: '{"dev": "terraform/state/dev", "qa": "terraform/state/qa", "prod": "terraform/state/prod"}'
+        default: '{"dev": "terraform/state", "qa": "terraform/state", "prod": "terraform/state"}'
       environment:
         required: true
         type: string
