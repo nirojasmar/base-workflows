@@ -148,7 +148,7 @@ jobs:
       - name: Upload Plan Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-bundle
+          name: terraform-bundle-${{ inputs.environment }}
           path: ${{ inputs.working_directory }}/tf-bundle.tar
           retention-days: 1
 
