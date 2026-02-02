@@ -9,6 +9,14 @@ on:
             scanner_type:
                 required: true
                 type: string
+            run_tests:
+                description: "Whether to run tests"
+                type: boolean
+                default: true
+            test_settings_path:
+                description: "Path to .runsettings file"
+                type: string
+                required: false
         secrets:
             SONAR_TOKEN:
                 required: true
@@ -37,12 +45,37 @@ jobs:
                 SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
                 SONAR_ORG: ${{ secrets.SONAR_ORG }}
             run: |
+                ls -R
                 dotnet tool install --global dotnet-sonarscanner
                 dotnet-sonarscanner begin /k:"${{ inputs.project_key }}" \
                     /o:"${{ env.SONAR_ORG }}" \
                     /d:sonar.token="${{ env.SONAR_TOKEN }}" \
-                    /d:sonar.host.url="https://sonarcloud.io"
-                dotnet build --configuration Release
+                    /d:sonar.host.url="https://sonarcloud.io" \
+                    /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
+                    /d:sonar.projectBaseDir="$(pwd)" \
+                    /d:sonar.exclusions="**/Program.cs"
+                
+                dotnet build --configuration Release /p:ContinuousIntegrationBuild=true /p:Deterministic=true
+                
+                if [ "${{ inputs.run_tests }}" = "true" ]; then
+                    if [ -n "${{ inputs.test_settings_path }}" ]; then
+                        echo "Running tests with settings: ${{ inputs.test_settings_path }}"
+                        dotnet test --configuration Release --no-build \
+                            --collect:"XPlat Code Coverage" \
+                            --settings "${{ inputs.test_settings_path }}" \
+                            /p:ContinuousIntegrationBuild=true \
+                            /p:Deterministic=true \
+                            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+                    else
+                        echo "Running tests without settings"
+                        dotnet test --configuration Release --no-build \
+                            --collect:"XPlat Code Coverage" \
+                            /p:ContinuousIntegrationBuild=true \
+                            /p:Deterministic=true \
+                            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+                    fi
+                fi
+                
                 dotnet-sonarscanner end /d:sonar.token="${{ env.SONAR_TOKEN }}"
 
           - name: Run Sonar JS
