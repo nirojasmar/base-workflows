@@ -2,18 +2,18 @@
     "gcp_account_config": {
         "prod": {
             "service_account_to_assume": "hobio-cd@hobio-prod.iam.gserviceaccount.com",
-            "workload_identity_provider": "",
-            "registry_host": ""
+            "workload_identity_provider": "projects/184799108707/locations/global/workloadIdentityPools/github-pool/providers/github-provider",
+            "registry_host": "us-east1-docker.pkg.dev"
         },
         "dev": {
             "service_account_to_assume": "hobio-cd@hobio-nonprod.iam.gserviceaccount.com",
             "workload_identity_provider": "projects/14699933850/locations/global/workloadIdentityPools/github-pool/providers/github-provider",
-            "registry_host": "us-central1-docker.pkg.dev"
+            "registry_host": "us-east1-docker.pkg.dev"
         },
         "qa": {
             "service_account_to_assume": "hobio-cd@hobio-nonprod.iam.gserviceaccount.com",
             "workload_identity_provider": "projects/14699933850/locations/global/workloadIdentityPools/github-pool/providers/github-provider",
-            "registry_host": ""
+            "registry_host": "us-east1-docker.pkg.dev"
         }
     }
 }

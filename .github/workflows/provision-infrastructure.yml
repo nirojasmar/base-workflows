@@ -8,6 +8,11 @@ on:
         required: true
         type: string
         default: '{"dev": "hobio-nonprod-tfstates-ue1", "qa": "hobio-nonprod-tfstates-ue1", "prod": "hobio-prod-tfstates-ue1"}'
+      backend_config_prefix:
+        description: 'Prefix for the backend config in the bucket'
+        required: false
+        type: string
+        default: '{"dev": "terraform/state/dev", "qa": "terraform/state/qa", "prod": "terraform/state/prod"}'
       environment:
         required: true
         type: string
@@ -27,6 +32,16 @@ on:
         type: number
         default: 60
         description: "Timeout for the workflow"
+      tf_vars_file:
+        required: false
+        type: string
+        description: "Path to .tfvars file"
+        default: '{"dev": "vars/dev.tfvars", "qa": "vars/qa.tfvars", "prod": "vars/prod.tfvars"}'
+      sandbox_environments:
+        required: false
+        type: string
+        default: ""
+        description: "List of sandbox environments"
 
 permissions:
   contents: read
@@ -65,7 +80,10 @@ jobs:
     with:
       environment: ${{ matrix.environment }}
       backend_config_bucket: ${{ fromJson(inputs.backend_config_bucket)[matrix.environment] }}
+      backend_config_prefix: ${{ fromJson(inputs.backend_config_prefix)[matrix.environment] }}
+      tf_vars_file: ${{ fromJson(inputs.tf_vars_file)[matrix.environment] }}
       working_directory: ${{ inputs.working_directory }}
       tf_version: ${{ inputs.tf_version }}
       timeout_minutes: ${{ inputs.timeout_minutes }}
+      sandbox_environments: ${{ inputs.sandbox_environments }}
     

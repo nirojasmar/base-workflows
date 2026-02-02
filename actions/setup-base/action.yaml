@@ -14,12 +14,23 @@ inputs:
   registry_host:
     description: "Docker Registry Host (e.g., us-central1-docker.pkg.dev). Required if environment is not set."
     required: false
+  skip_verify:
+    description: "Skip verification of the base branch. Required if environment is not set."
+    required: false
+
+outputs:
+  gcp_service_account:
+    description: "GCP Service Account"
+    value: ${{ steps.resolve-creds.outputs.service_account || inputs.gcp_service_account }}
+  registry_host:
+    description: "Docker Registry Host"
+    value: ${{ steps.resolve-creds.outputs.registry_host || inputs.registry_host }}
 
 runs:
   using: "composite"
   steps:
     - name: Verify commit is not behind base branch
-      if: github.event_name == 'pull_request'
+      if: github.event_name == 'pull_request' && inputs.skip_verify != 'true'
       shell: bash
       run: |
         BASE_BRANCH="${{ github.event.pull_request.base.ref }}"

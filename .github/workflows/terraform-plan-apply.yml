@@ -12,6 +12,10 @@ on:
         required: false
         type: string
         description: "GCS bucket for Terraform state storage"
+      backend_config_prefix:
+        required: false
+        type: string
+        description: "GCS prefix for Terraform state storage"
       backend_config_key:
         required: false
         type: string
@@ -34,6 +38,11 @@ on:
         required: false
         type: string
         description: "Path to .tfvars file"
+      sandbox_environments:
+        required: false
+        type: string
+        default: ""
+        description: "List of sandbox environments (dev, qa)"
     secrets:
       GCP_WORKLOAD_IDENTITY_PROVIDER:
         required: false
@@ -102,6 +111,9 @@ jobs:
           if [ -n "${{ inputs.backend_config_bucket }}" ]; then
             args="-backend-config=bucket=${{ inputs.backend_config_bucket }}"
           fi
+          if [ -n "${{ inputs.backend_config_prefix }}" ]; then
+            args="$args -backend-config=prefix=${{ inputs.backend_config_prefix }}"
+          fi
           terraform init $args
 
       - name: Terraform Plan
@@ -109,7 +121,7 @@ jobs:
         working-directory: ${{ inputs.working_directory }}
         run: |
           args=""
-          if [ -n "${{ inputs.tf_vars_file }}" ]; then
+          if [ -f "${{ inputs.tf_vars_file }}" ]; then
             args="-var-file=${{ inputs.tf_vars_file }}"
           fi
           terraform plan -out=tfplan -input=false $args
@@ -136,7 +148,7 @@ jobs:
       - name: Upload Plan Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-bundle
+          name: terraform-bundle-${{ inputs.environment }}
           path: ${{ inputs.working_directory }}/tf-bundle.tar
           retention-days: 1
 
@@ -148,6 +160,7 @@ jobs:
   apply:
     name: Terraform Apply - ${{ inputs.environment }}
     needs: [plan]
+    if: (github.event_name != 'pull_request') || (contains(fromJson(inputs.sandbox_environments), inputs.environment))
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     environment: ${{ inputs.environment }}
@@ -179,6 +192,7 @@ jobs:
         uses: ./base-workflows/actions/setup-base
         with:
           environment: ${{ inputs.environment }}
+          skip_verify: true
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -192,12 +206,15 @@ jobs:
           if [ -n "${{ inputs.backend_config_bucket }}" ]; then
             args="-backend-config=bucket=${{ inputs.backend_config_bucket }}"
           fi
+          if [ -n "${{ inputs.backend_config_prefix }}" ]; then
+            args="$args -backend-config=prefix=${{ inputs.backend_config_prefix }}"
+          fi
           terraform init $args
 
       - name: Download Plan Bundle
         uses: actions/download-artifact@v4
         with:
-          name: terraform-bundle
+          name: terraform-bundle-${{ inputs.environment }}
           path: ${{ inputs.working_directory }}
 
       - name: Extract Bundle
