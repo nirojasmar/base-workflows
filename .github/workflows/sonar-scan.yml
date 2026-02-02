@@ -9,6 +9,14 @@ on:
             scanner_type:
                 required: true
                 type: string
+            run_tests:
+                description: "Whether to run tests"
+                type: boolean
+                default: true
+            test_settings_path:
+                description: "Path to .runsettings file"
+                type: string
+                required: false
         secrets:
             SONAR_TOKEN:
                 required: true
@@ -37,12 +45,26 @@ jobs:
                 SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
                 SONAR_ORG: ${{ secrets.SONAR_ORG }}
             run: |
+                ls -R
                 dotnet tool install --global dotnet-sonarscanner
                 dotnet-sonarscanner begin /k:"${{ inputs.project_key }}" \
                     /o:"${{ env.SONAR_ORG }}" \
                     /d:sonar.token="${{ env.SONAR_TOKEN }}" \
-                    /d:sonar.host.url="https://sonarcloud.io"
+                    /d:sonar.host.url="https://sonarcloud.io" \
+                    /d:sonar.cs.cobertura.reportsPaths="**/coverage.cobertura.xml"
+                
                 dotnet build --configuration Release
+                
+                if [ "${{ inputs.run_tests }}" = "true" ]; then
+                    if [ -n "${{ inputs.test_settings_path }}" ]; then
+                        echo "Running tests with settings: ${{ inputs.test_settings_path }}"
+                        dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --settings "${{ inputs.test_settings_path }}"
+                    else
+                        echo "Running tests without settings"
+                        dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage"
+                    fi
+                fi
+                
                 dotnet-sonarscanner end /d:sonar.token="${{ env.SONAR_TOKEN }}"
 
           - name: Run Sonar JS
