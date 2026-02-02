@@ -51,7 +51,7 @@ jobs:
                     /o:"${{ env.SONAR_ORG }}" \
                     /d:sonar.token="${{ env.SONAR_TOKEN }}" \
                     /d:sonar.host.url="https://sonarcloud.io" \
-                    /d:sonar.cs.cobertura.reportsPaths="**/coverage.cobertura.xml" \
+                    /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
                     /d:sonar.projectBaseDir="$(pwd)" \
                     /d:sonar.verbose=true
                 
@@ -64,13 +64,15 @@ jobs:
                             --collect:"XPlat Code Coverage" \
                             --settings "${{ inputs.test_settings_path }}" \
                             /p:ContinuousIntegrationBuild=true \
-                            /p:Deterministic=true
+                            /p:Deterministic=true \
+                            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
                     else
                         echo "Running tests without settings"
                         dotnet test --configuration Release --no-build \
                             --collect:"XPlat Code Coverage" \
                             /p:ContinuousIntegrationBuild=true \
-                            /p:Deterministic=true
+                            /p:Deterministic=true \
+                            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
                     fi
                 fi
                 
