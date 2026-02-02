@@ -51,17 +51,26 @@ jobs:
                     /o:"${{ env.SONAR_ORG }}" \
                     /d:sonar.token="${{ env.SONAR_TOKEN }}" \
                     /d:sonar.host.url="https://sonarcloud.io" \
-                    /d:sonar.cs.cobertura.reportsPaths="**/coverage.cobertura.xml"
+                    /d:sonar.cs.cobertura.reportsPaths="**/coverage.cobertura.xml" \
+                    /d:sonar.projectBaseDir="$(pwd)" \
+                    /d:sonar.verbose=true
                 
-                dotnet build --configuration Release
+                dotnet build --configuration Release /p:ContinuousIntegrationBuild=true /p:Deterministic=true
                 
                 if [ "${{ inputs.run_tests }}" = "true" ]; then
                     if [ -n "${{ inputs.test_settings_path }}" ]; then
                         echo "Running tests with settings: ${{ inputs.test_settings_path }}"
-                        dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage" --settings "${{ inputs.test_settings_path }}"
+                        dotnet test --configuration Release --no-build \
+                            --collect:"XPlat Code Coverage" \
+                            --settings "${{ inputs.test_settings_path }}" \
+                            /p:ContinuousIntegrationBuild=true \
+                            /p:Deterministic=true
                     else
                         echo "Running tests without settings"
-                        dotnet test --configuration Release --no-build --collect:"XPlat Code Coverage"
+                        dotnet test --configuration Release --no-build \
+                            --collect:"XPlat Code Coverage" \
+                            /p:ContinuousIntegrationBuild=true \
+                            /p:Deterministic=true
                     fi
                 fi
                 
