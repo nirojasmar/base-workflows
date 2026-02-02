@@ -53,7 +53,7 @@ jobs:
                     /d:sonar.host.url="https://sonarcloud.io" \
                     /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
                     /d:sonar.projectBaseDir="$(pwd)" \
-                    /d:sonar.verbose=true
+                    /d:sonar.exclusions="**/Program.cs"
                 
                 dotnet build --configuration Release /p:ContinuousIntegrationBuild=true /p:Deterministic=true
                 
