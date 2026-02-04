@@ -1,0 +1,73 @@
+name: Reusable Cloud Run Deploy
+
+permissions:
+  contents: read
+  id-token: write
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        type: string
+        description: "The name of the image to deploy (e.g. project/repo/image)"
+      environment:
+        required: true
+        type: string
+        description: "Environment (e.g. dev, qa, prod)"
+      service:
+        required: true
+        type: string
+        description: "Service name"
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get ref
+        id: get-ref
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const idToken = await core.getIDToken()
+            const payloadBase64 = idToken.split('.')[1];
+            const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+            const payload = JSON.parse(payloadJson);
+            const workflowRef = payload.job_workflow_ref;
+            console.log(`Full workflow ref from token: ${workflowRef}`);
+            const ref = workflowRef.split('@')[1].replace('refs/heads/', '');
+            console.log(`Resolved library ref: ${ref}`);
+            core.setOutput('ref', ref);
+      
+      - name: Checkout base-workflows
+        uses: actions/checkout@v4
+        with:
+          repository: nirojasmar/base-workflows
+          ref: ${{ steps.get-ref.outputs.ref }}
+          path: base-workflows
+          persist-credentials: false
+
+      - name: Set up Base
+        id: setup-base
+        uses: ./base-workflows/actions/setup-base/
+        with:
+          environment: ${{ inputs.environment }}
+
+      - name: Deploy
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: ${{ inputs.service }}
+          image: ${{ inputs.image_name }}
+    
+      - name: Show URL
+        run: echo ${{ steps.deploy.outputs.url }}

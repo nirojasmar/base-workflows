@@ -39,6 +39,8 @@ jobs:
       contents: read
       id-token: write
       packages: write
+    outputs:
+      image_name: ${{ steps.setup-base.outputs.registry_host }}/${{ inputs.image_name }}:latest
 
     steps:
       - name: Checkout Code
