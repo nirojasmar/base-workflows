@@ -40,7 +40,7 @@ jobs:
       id-token: write
       packages: write
     outputs:
-      image_name: ${{ steps.setup-base.outputs.registry_host }}/${{ inputs.image_name }}:latest
+      image_name: ${{ steps.setup-base.outputs.registry_host }}/${{ inputs.image_name }}:${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout Code
