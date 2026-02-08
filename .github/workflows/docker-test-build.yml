@@ -30,6 +30,10 @@ on:
         required: true
         type: string
         description: "Environment (e.g. dev, qa, prod)"
+    outputs:
+      image_name:
+        description: "The full image name with tag"
+        value: ${{ jobs.build.outputs.image_name }}
 
 jobs:
   build:
