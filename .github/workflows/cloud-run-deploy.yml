@@ -19,6 +19,21 @@ on:
         required: true
         type: string
         description: "Service name"
+      vpc_connector:
+        required: false
+        type: string
+        description: "VPC connector ID for internal network access"
+        default: ""
+      secrets:
+        required: false
+        type: string
+        description: "Secrets in format: ENV_VAR=SECRET_NAME:VERSION, comma-separated"
+        default: ""
+      env_vars:
+        required: false
+        type: string
+        description: "Environment variables in KEY=VALUE format, comma-separated"
+        default: ""
 
 jobs:
   deploy:
@@ -61,6 +76,15 @@ jobs:
         uses: ./base-workflows/actions/setup-base/
         with:
           environment: ${{ inputs.environment }}
+        
+      - name: Build deploy flags
+        id: flags
+        run: |
+          FLAGS=""
+          if [ -n "${{ inputs.vpc_connector }}" ]; then
+            FLAGS="$FLAGS --vpc-connector=${{ inputs.vpc_connector }} --vpc-egress=private-ranges-only"
+          fi
+          echo "deploy_flags=$FLAGS" >> $GITHUB_OUTPUT
 
       - name: Deploy
         id: deploy
@@ -68,6 +92,9 @@ jobs:
         with:
           service: ${{ inputs.service }}
           image: ${{ inputs.image_name }}
+          flags: ${{ steps.flags.outputs.deploy_flags }}
+          secrets: ${{ inputs.secrets }}
+          env_vars: ${{ inputs.env_vars }}
     
       - name: Show URL
         run: echo ${{ steps.deploy.outputs.url }}
