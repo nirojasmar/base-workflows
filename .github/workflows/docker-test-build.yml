@@ -30,6 +30,10 @@ on:
         required: true
         type: string
         description: "Environment (e.g. dev, qa, prod)"
+    outputs:
+      image_name:
+        description: "The full image name with tag"
+        value: ${{ jobs.build.outputs.image_name }}
 
 jobs:
   build:
@@ -39,6 +43,8 @@ jobs:
       contents: read
       id-token: write
       packages: write
+    outputs:
+      image_name: ${{ steps.setup-base.outputs.registry_host }}/${{ inputs.image_name }}:${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout Code
