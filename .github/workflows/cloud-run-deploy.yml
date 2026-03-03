@@ -39,6 +39,11 @@ on:
         type: string
         description: "Region to deploy to"
         default: "us-east1"
+      no_cpu_throttling:
+        required: false
+        type: boolean
+        description: "Disable CPU throttling"
+        default: false
 
 jobs:
   deploy:
@@ -88,6 +93,9 @@ jobs:
           FLAGS=""
           if [ -n "${{ inputs.vpc_connector }}" ]; then
             FLAGS="$FLAGS --vpc-connector=${{ inputs.vpc_connector }} --vpc-egress=private-ranges-only"
+          fi
+          if [ "${{ inputs.no_cpu_throttling }}" == "true" ]; then
+            FLAGS="$FLAGS --no-cpu-throttling"
           fi
           echo "deploy_flags=$FLAGS" >> $GITHUB_OUTPUT
 
