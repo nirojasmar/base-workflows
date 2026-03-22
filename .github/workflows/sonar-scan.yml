@@ -17,6 +17,10 @@ on:
                 description: "Path to .runsettings file"
                 type: string
                 required: false
+            enable_firestore_emulator:
+                description: "Whether to start the Firestore emulator for tests"
+                type: boolean
+                default: false
         secrets:
             SONAR_TOKEN:
                 required: true
@@ -37,6 +41,12 @@ jobs:
             uses: actions/setup-dotnet@v4
             with:
                 dotnet-version: 10.0.x
+
+          - name: Start Firestore Emulator
+            if: ${{ inputs.enable_firestore_emulator == true }}
+            run: |
+                docker run -d -p 8080:8080 google/cloud-sdk:emulators gcloud beta emulators firestore start --host-port=0.0.0.0:8080
+                echo "FIRESTORE_EMULATOR_HOST=localhost:8080" >> $GITHUB_ENV
 
           - name: Run Sonar .NET
             if: ${{ inputs.scanner_type == 'dotnet' }}
