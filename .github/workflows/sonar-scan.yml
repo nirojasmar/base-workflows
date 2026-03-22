@@ -47,6 +47,15 @@ jobs:
             run: |
                 docker run -d -p 8080:8080 google/cloud-sdk:emulators gcloud beta emulators firestore start --host-port=0.0.0.0:8080
                 echo "FIRESTORE_EMULATOR_HOST=localhost:8080" >> $GITHUB_ENV
+                echo "Waiting for Firestore emulator to be ready..."
+                for i in {1..30}; do
+                    if curl -s http://localhost:8080 > /dev/null 2>&1; then
+                        echo "Firestore emulator is ready"
+                        break
+                    fi
+                    echo "Attempt $i: Emulator not ready yet, waiting..."
+                    sleep 2
+                done
 
           - name: Run Sonar .NET
             if: ${{ inputs.scanner_type == 'dotnet' }}
